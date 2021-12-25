@@ -24,9 +24,7 @@ use std::process::Command;
 use std::{io::Write, process::Stdio};
 
 pub fn is_available() -> Result<bool, BackendError> {
-    let output = Command::new("flatpak-spawn")
-        .arg("--host")
-        .arg("gocryptfs")
+    let output = Command::new("gocryptfs")
         .arg("--version")
         .output()?;
 
@@ -34,11 +32,9 @@ pub fn is_available() -> Result<bool, BackendError> {
 }
 
 pub fn init(vault_config: &VaultConfig, password: String) -> Result<(), BackendError> {
-    let mut child = Command::new("flatpak-spawn")
+    let mut child = Command::new("gocryptfs")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .arg("--host")
-        .arg("gocryptfs")
         .arg("--init")
         .arg("-q")
         .arg("--")
@@ -68,13 +64,11 @@ pub fn init(vault_config: &VaultConfig, password: String) -> Result<(), BackendE
 }
 
 pub fn open(vault_config: &VaultConfig, password: String) -> Result<(), BackendError> {
-    let mut child = Command::new("flatpak-spawn")
+    let mut child = Command::new("gocryptfs")
+        .env("DEBUG", "1")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .arg("--host")
-        .arg("gocryptfs")
-        .arg("-q")
-        .arg("--")
+        .arg("-fusedebug")
         .arg(&vault_config.encrypted_data_directory)
         .arg(&vault_config.mount_directory)
         .spawn()?;
@@ -95,15 +89,15 @@ pub fn open(vault_config: &VaultConfig, password: String) -> Result<(), BackendE
         std::io::stdout().write_all(&output.stdout).unwrap();
         std::io::stderr().write_all(&output.stderr).unwrap();
 
+        println!("Err code: {:?}", output.status.code());
+
         Err(status_to_err(output.status.code()))
     }
 }
 
 pub fn close(vault_config: &VaultConfig) -> Result<(), BackendError> {
-    let child = Command::new("flatpak-spawn")
+    let child = Command::new("fusermount")
         .stdout(Stdio::piped())
-        .arg("--host")
-        .arg("fusermount")
         .arg("-u")
         .arg(&vault_config.mount_directory)
         .spawn()?;
